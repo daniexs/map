@@ -5,11 +5,12 @@ import {
   TouchableOpacity,
   Text,
   Dimensions,
-  Image
+  Image,
+  Platform
 } from "react-native";
 //import { useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, Polyline } from "react-native-maps";
 
 const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
@@ -19,6 +20,29 @@ const Waiting_Driver_Screen = () => {
   const [initialRegion, setInitialRegion] = useState(null);
 
   const [run, setRun] = useState(false)
+  const [checkRoute, setCheckRoute] = useState(true)
+
+  const [prevLocation, setPrevLocation] = useState([
+    {
+      latitude: 0,
+      longitude: 0,
+      latitudeDelta: 0.005,
+      longitudeDelta: 0.005,
+    },
+    {
+      latitude: 0,
+      longitude: 0,
+      latitudeDelta: 0.005,
+      longitudeDelta: 0.005,
+    }
+  ])
+
+
+
+  function drawerHis() {
+    setRun(false)
+    setPrevLocation([initialRegion])
+  }
 
   const getLocation = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
@@ -36,7 +60,27 @@ const Waiting_Driver_Screen = () => {
       latitudeDelta: 0.005,
       longitudeDelta: 0.005,
     });
-    console.log(currentLocation, "LOC")
+    console.log(location, "LOC")
+
+    if (run) {
+      setPrevLocation([initialRegion])
+      setPrevLocation(
+        [...prevLocation, initialRegion]
+      )
+      setCheckRoute(false)
+    } else {
+      if (location) {
+        setPrevLocation([
+          {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005,
+          }
+        ])
+      }
+    }
+
   };
 
   useEffect(() => {
@@ -48,7 +92,7 @@ const Waiting_Driver_Screen = () => {
   useEffect(() => {
     const time = setInterval(() => {
       if (run === true) {
-        getLocation();
+        getLocation()
       }
     }, 1000)
 
@@ -66,13 +110,17 @@ const Waiting_Driver_Screen = () => {
             region={initialRegion}
           >
             {currentLocation && (
-              <Marker
-                coordinate={{
-                  latitude: currentLocation.latitude,
-                  longitude: currentLocation.longitude,
-                }}
-                title="Your Location"
-              />
+              <>
+                <Marker
+                  coordinate={{
+                    latitude: currentLocation.latitude,
+                    longitude: currentLocation.longitude,
+                  }}
+                  title="Your Location"
+                />
+                <Polyline coordinates={prevLocation} strokeWidth={3} />
+              </>
+
             )}
           </MapView>
         )}
@@ -86,7 +134,7 @@ const Waiting_Driver_Screen = () => {
         <TouchableOpacity onPress={() => setRun(true)}>
           <Text style={{ fontSize: 20, padding: 10 }}>Start</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setRun(false)}>
+        <TouchableOpacity onPress={() => drawerHis()}>
           <Text style={{ fontSize: 20, padding: 10 }}>Stop</Text>
         </TouchableOpacity>
       </View>
