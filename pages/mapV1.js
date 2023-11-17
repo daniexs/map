@@ -11,16 +11,26 @@ import {
 //import { useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
 import MapView, { Marker, Polyline } from "react-native-maps";
+import haversine from "haversine";
+import useStopwatchV1 from "../hooks/useTimer";
 
 const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;
+
 
 const Waiting_Driver_Screen = () => {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [initialRegion, setInitialRegion] = useState(null);
 
   const [run, setRun] = useState(false)
-  const [checkRoute, setCheckRoute] = useState(true)
+  const [distanceTravel, setDistanceTravel] = useState(0)
+  const [locFirst, setLocFirst] = useState(null)
+  const [timer, setTimer] = useState(0)
+
+  const [hours, sethours] = useState(0)
+  const [minutes, setMinutes] = useState(0)
+  const [seconds, setSeconds] = useState(0)
+
 
   const [prevLocation, setPrevLocation] = useState([
     {
@@ -42,6 +52,7 @@ const Waiting_Driver_Screen = () => {
   function drawerHis() {
     setRun(false)
     setPrevLocation([initialRegion])
+    setDistanceTravel(0)
   }
 
   const getLocation = async () => {
@@ -63,12 +74,16 @@ const Waiting_Driver_Screen = () => {
     console.log(location, "LOC")
 
     if (run) {
-      setPrevLocation([initialRegion])
       setPrevLocation(
         [...prevLocation, initialRegion]
       )
-      setCheckRoute(false)
+      const distance = haversine(
+        locFirst, initialRegion)
+      const distancePls = distanceTravel + distance
+      setDistanceTravel(distancePls)
+      setLocFirst(initialRegion)
     } else {
+      console.log('ga maiin')
       if (location) {
         setPrevLocation([
           {
@@ -78,6 +93,10 @@ const Waiting_Driver_Screen = () => {
             longitudeDelta: 0.005,
           }
         ])
+        setLocFirst({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        })
       }
     }
 
@@ -93,11 +112,25 @@ const Waiting_Driver_Screen = () => {
     const time = setInterval(() => {
       if (run === true) {
         getLocation()
+        const totalTime = timer + 1
+        setTimer(totalTime)
       }
     }, 1000)
 
     return () => clearInterval(time)
   },);
+
+  function startHandler() {
+    setRun(true)
+  }
+
+
+  useEffect(() => {
+    sethours(Math.floor(timer / 3600))
+    setMinutes(Math.floor((timer % 3600) / 60))
+    setSeconds(Math.floor((timer % 60)))
+  }, [timer])
+
 
 
   return (
@@ -131,7 +164,11 @@ const Waiting_Driver_Screen = () => {
         <Text style={{ fontSize: 20 }}>Latitude: {currentLocation?.latitude}</Text>
         <Text style={{ fontSize: 20 }}>Longitude: {currentLocation?.longitude}</Text>
         <Text style={{ fontSize: 20 }}>Altitude: {currentLocation?.altitude}</Text>
-        <TouchableOpacity onPress={() => setRun(true)}>
+        <Text style={{ fontSize: 20 }}>Distance: {distanceTravel}</Text>
+        <View style={{ fontSize: '100px' }}>
+          <Text>{hours.toString().padStart(2, "0")}:{minutes.toString().padStart(2, "0")}:{seconds.toString().padStart(2, "0")}</Text>
+        </View>
+        <TouchableOpacity onPress={() => startHandler()}>
           <Text style={{ fontSize: 20, padding: 10 }}>Start</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => drawerHis()}>
@@ -144,7 +181,7 @@ const Waiting_Driver_Screen = () => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 0.5,
+    flex: 0.9,
     alignItems: "center",
     justifyContent: "center",
   },
