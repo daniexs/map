@@ -49,14 +49,13 @@ function InputAutocomplete({ label, placeholder, onPlaceSelected }) {
   )
 }
 
-export default function MapV5() {
+export default function MapV3() {
   const [origin, setOrigin] = useState()
   const [destination, setDestination] = useState()
   const [showDirections, setShowDirections] = useState(false)
   const [distance, setDistance] = useState(0)
   const [duration, setDuration] = useState(0)
   const mapRef = useRef(null)
-  const [rideGo, setRideGo] = useState(false)
 
   const moveTo = async position => {
     const camera = await mapRef.current?.getCamera()
@@ -121,31 +120,29 @@ export default function MapV5() {
           />
         )}
       </MapView>
-      {rideGo && (
-        <View style={styles.searchContainer}>
-          <InputAutocomplete
-            label="Origin"
-            onPlaceSelected={details => {
-              onPlaceSelected(details, "origin")
-            }}
-          />
-          <InputAutocomplete
-            label="Destination"
-            onPlaceSelected={details => {
-              onPlaceSelected(details, "destination")
-            }}
-          />
-          <TouchableOpacity style={styles.button} onPress={traceRoute}>
-            <Text style={styles.buttonText}>Trace route</Text>
-          </TouchableOpacity>
-          {distance && duration ? (
-            <View>
-              <Text>Distance: {distance.toFixed(2)}</Text>
-              <Text>Duration: {Math.ceil(duration)} min</Text>
-            </View>
-          ) : null}
-        </View>
-      )}
+      <View style={styles.searchContainer}>
+        <InputAutocomplete
+          label="Origin"
+          onPlaceSelected={details => {
+            onPlaceSelected(details, "origin")
+          }}
+        />
+        <InputAutocomplete
+          label="Destination"
+          onPlaceSelected={details => {
+            onPlaceSelected(details, "destination")
+          }}
+        />
+        <TouchableOpacity style={styles.button} onPress={traceRoute}>
+          <Text style={styles.buttonText}>Trace route</Text>
+        </TouchableOpacity>
+        {distance && duration ? (
+          <View>
+            <Text>Distance: {distance.toFixed(2)}</Text>
+            <Text>Duration: {Math.ceil(duration)} min</Text>
+          </View>
+        ) : null}
+      </View>
     </View>
   )
 }
