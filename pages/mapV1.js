@@ -12,7 +12,6 @@ import {
 import * as Location from "expo-location";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import haversine from "haversine";
-import useStopwatchV1 from "../hooks/useTimer";
 
 const windowWidth = Dimensions.get("window").width;
 const windowHeight = Dimensions.get("window").height;

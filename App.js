@@ -7,8 +7,8 @@ import MapV3 from './pages/mapRouteV3';
 export default function App() {
   return (
     // <Waiting_Driver_Screen />
-    // <MapRoutes />
-    <MapV3 />
+    <MapRoutes />
+    // <MapV3 />
   );
 }
 

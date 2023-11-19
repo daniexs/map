@@ -11,12 +11,8 @@ import Constants from "expo-constants"
 import { useRef, useState } from "react"
 import MapViewDirections from "react-native-maps-directions"
 
-// https://docs.expo.dev/versions/latest/sdk/map-view/
-// https://www.npmjs.com/package/react-native-google-places-autocomplete
-// https://www.npmjs.com/package/react-native-maps-directions
 
 const { width, height } = Dimensions.get("window")
-
 const ASPECT_RATIO = width / height
 const LATITUDE_DELTA = 0.02
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO

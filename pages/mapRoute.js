@@ -4,16 +4,36 @@ import {
   View,
   Dimensions,
   Text,
-  TouchableOpacity
+  TouchableOpacity,
+  ScrollView,
+  TextInput
 } from "react-native"
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete"
 import Constants from "expo-constants"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import MapViewDirections from "react-native-maps-directions"
+import * as Location from "expo-location";
 
-// https://docs.expo.dev/versions/latest/sdk/map-view/
-// https://www.npmjs.com/package/react-native-google-places-autocomplete
-// https://www.npmjs.com/package/react-native-maps-directions
+
+import firebase from "firebase/compat/app"
+import { getDatabase, ref, set, onValue } from "firebase/database";
+
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDAkDtPeQz3DCU_Jq5xQvpk80eP2biJ4OM",
+  authDomain: "realtime-tracking-baa73.firebaseapp.com",
+  projectId: "realtime-tracking-baa73",
+  storageBucket: "realtime-tracking-baa73.appspot.com",
+  messagingSenderId: "68954802260",
+  appId: "1:68954802260:web:cdaee239294ac7713945c1",
+  databaseURL: 'https://realtime-tracking-baa73-default-rtdb.asia-southeast1.firebasedatabase.app'
+};
+// const app = initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+
+const db = getDatabase();
 
 const { width, height } = Dimensions.get("window")
 
@@ -49,6 +69,8 @@ function InputAutocomplete({ label, placeholder, onPlaceSelected }) {
   )
 }
 
+
+
 export default function MapV5() {
   const [origin, setOrigin] = useState()
   const [destination, setDestination] = useState()
@@ -57,6 +79,10 @@ export default function MapV5() {
   const [duration, setDuration] = useState(0)
   const mapRef = useRef(null)
   const [rideGo, setRideGo] = useState(false)
+  const [run, setRun] = useState(false)
+
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [initialRegion, setInitialRegion] = useState(null);
 
   const moveTo = async position => {
     const camera = await mapRef.current?.getCamera()
@@ -67,7 +93,6 @@ export default function MapV5() {
   }
 
   const edgePaddingValue = 70
-
   const edgePadding = {
     top: edgePaddingValue,
     right: edgePaddingValue,
@@ -100,6 +125,102 @@ export default function MapV5() {
     set(position)
     moveTo(position)
   }
+
+
+  function writeUserData(stau, dua) {
+    set(ref(db, 'users/' + first), {
+      username: first,
+      latitude: stau,
+      longitude: dua,
+    });
+  }
+
+  useEffect(() => {
+    const starCountRef = ref(db, 'users/');
+    onValue(starCountRef, (snapshot) => {
+      const data = snapshot.val();
+      const newData = Object.keys(data).map(key => ({
+        ...data[key]
+      }));
+      console.log(newData, '------')
+      setdataParty(newData)
+    });
+  }, [])
+
+
+  const getLocation = async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      console.log("Permission to access location was denied");
+      return;
+    }
+
+    let location = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.BestForNavigation
+    });
+    setCurrentLocation(location.coords);
+
+    setInitialRegion({
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+      latitudeDelta: 0.005,
+      longitudeDelta: 0.005,
+    });
+    console.log(location, "LOC")
+
+    if (run) {
+      writeUserData(location.coords.latitude, location.coords.longitude)
+    }
+
+    // if (run) {
+    //   setPrevLocation(
+    //     [...prevLocation, initialRegion]
+    //   )
+    //   const distance = haversine(
+    //     locFirst, initialRegion)
+    //   const distancePls = distanceTravel + distance
+    //   setDistanceTravel(distancePls)
+    //   setLocFirst(initialRegion)
+    // } else {
+    //   console.log('ga maiin')
+    //   if (location) {
+    //     setPrevLocation([
+    //       {
+    //         latitude: location.coords.latitude,
+    //         longitude: location.coords.longitude,
+    //         latitudeDelta: 0.005,
+    //         longitudeDelta: 0.005,
+    //       }
+    //     ])
+    //     setLocFirst({
+    //       latitude: location.coords.latitude,
+    //       longitude: location.coords.longitude,
+    //     })
+    //   }
+    // }
+
+  };
+
+  useEffect(() => {
+    getLocation()
+    getLocation()
+    console.log('jalan')
+  }, [])
+
+  useEffect(() => {
+    const time = setInterval(() => {
+      if (run) {
+        getLocation()
+        console.log(first)
+      }
+    }, 1000)
+
+    return () => clearInterval(time)
+  },);
+
+  const [dataParty, setdataParty] = useState([])
+  const [first, setfirst] = useState('')
+
   return (
     <View style={styles.container}>
       <MapView
@@ -107,6 +228,11 @@ export default function MapV5() {
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         initialRegion={INITIAL_POSITION}
+        // followsUserLocation
+        showsCompass={true}
+        // showsUserLocation
+        region={initialRegion}
+      // followsUserLocation
       >
         {origin && <Marker coordinate={origin} />}
         {destination && <Marker coordinate={destination} />}
@@ -120,7 +246,35 @@ export default function MapV5() {
             onReady={traceRouteOnReady}
           />
         )}
+        {currentLocation && (
+          <>
+            <Marker
+              coordinate={{
+                latitude: currentLocation.latitude,
+                longitude: currentLocation.longitude,
+              }}
+              title="Your Location"
+            />
+          </>
+
+        )}
+        {dataParty.map((el, i) => {
+          return <Marker key={i} coordinate={{ latitude: el.latitude, longitude: el.longitude }} title={el.username} />
+        })}
       </MapView>
+      <View>
+        <TouchableOpacity style={styles.button} onPress={() => setRun(true)}>
+          <Text style={styles.buttonText}>Trace route</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={() => setRun(false)}>
+          <Text style={styles.buttonText}>Stop Trace</Text>
+        </TouchableOpacity>
+        <TextInput
+          style={styles.input}
+          onChangeText={newText => setfirst(newText)}
+          defaultValue={first}
+        />
+      </View>
       {rideGo && (
         <View style={styles.searchContainer}>
           <InputAutocomplete
@@ -159,7 +313,8 @@ const styles = StyleSheet.create({
   },
   map: {
     width: Dimensions.get("window").width,
-    height: Dimensions.get("window").height
+    height: Dimensions.get("window").height,
+    flex: 0.9
   },
   searchContainer: {
     position: "absolute",
