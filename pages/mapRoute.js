@@ -1,4 +1,4 @@
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps"
+import MapView, { Marker, PROVIDER_GOOGLE, Polyline } from "react-native-maps"
 import {
   StyleSheet,
   View,
@@ -6,14 +6,15 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  TextInput
+  TextInput,
+  Image
 } from "react-native"
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete"
 import Constants from "expo-constants"
 import { useEffect, useRef, useState } from "react"
 import MapViewDirections from "react-native-maps-directions"
 import * as Location from "expo-location";
-
+import haversine from "haversine";
 
 import firebase from "firebase/compat/app"
 import { getDatabase, ref, set, onValue } from "firebase/database";
@@ -78,11 +79,32 @@ export default function MapV5() {
   const [distance, setDistance] = useState(0)
   const [duration, setDuration] = useState(0)
   const mapRef = useRef(null)
-  const [rideGo, setRideGo] = useState(false)
+  const [rideGo, setRideGo] = useState(true)
   const [run, setRun] = useState(false)
 
   const [currentLocation, setCurrentLocation] = useState(null);
   const [initialRegion, setInitialRegion] = useState(null);
+  const [distanceTravel, setDistanceTravel] = useState(0)
+  const [locFirst, setLocFirst] = useState(null)
+  const [timer, setTimer] = useState(0)
+
+  const [hours, sethours] = useState(0)
+  const [minutes, setMinutes] = useState(0)
+  const [seconds, setSeconds] = useState(0)
+  const [prevLocation, setPrevLocation] = useState([
+    {
+      latitude: 0,
+      longitude: 0,
+      latitudeDelta: 0.005,
+      longitudeDelta: 0.005,
+    },
+    {
+      latitude: 0,
+      longitude: 0,
+      latitudeDelta: 0.005,
+      longitudeDelta: 0.005,
+    }
+  ])
 
   const moveTo = async position => {
     const camera = await mapRef.current?.getCamera()
@@ -101,9 +123,8 @@ export default function MapV5() {
   }
 
   const traceRouteOnReady = args => {
+    // console.log(args, "<<<<<<<<<<<<")
     if (args) {
-      // args.distance
-      // args.duration
       setDistance(args.distance)
       setDuration(args.duration)
     }
@@ -142,7 +163,7 @@ export default function MapV5() {
       const newData = Object.keys(data).map(key => ({
         ...data[key]
       }));
-      console.log(newData, '------')
+      // console.log(newData, '------')
       setdataParty(newData)
     });
   }, [])
@@ -172,32 +193,32 @@ export default function MapV5() {
       writeUserData(location.coords.latitude, location.coords.longitude)
     }
 
-    // if (run) {
-    //   setPrevLocation(
-    //     [...prevLocation, initialRegion]
-    //   )
-    //   const distance = haversine(
-    //     locFirst, initialRegion)
-    //   const distancePls = distanceTravel + distance
-    //   setDistanceTravel(distancePls)
-    //   setLocFirst(initialRegion)
-    // } else {
-    //   console.log('ga maiin')
-    //   if (location) {
-    //     setPrevLocation([
-    //       {
-    //         latitude: location.coords.latitude,
-    //         longitude: location.coords.longitude,
-    //         latitudeDelta: 0.005,
-    //         longitudeDelta: 0.005,
-    //       }
-    //     ])
-    //     setLocFirst({
-    //       latitude: location.coords.latitude,
-    //       longitude: location.coords.longitude,
-    //     })
-    //   }
-    // }
+    if (run) {
+      setPrevLocation(
+        [...prevLocation, initialRegion]
+      )
+      const distance = haversine(
+        locFirst, initialRegion)
+      const distancePls = distanceTravel + distance
+      setDistanceTravel(distancePls)
+      setLocFirst(initialRegion)
+    } else {
+      console.log('ga maiin')
+      if (location) {
+        setPrevLocation([
+          {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005,
+          }
+        ])
+        setLocFirst({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        })
+      }
+    }
 
   };
 
@@ -212,14 +233,36 @@ export default function MapV5() {
       if (run) {
         getLocation()
         console.log(first)
+        const totalTime = timer + 1
+        setTimer(totalTime)
       }
     }, 1000)
 
     return () => clearInterval(time)
   },);
 
+  const [follow, setfollow] = useState(true)
   const [dataParty, setdataParty] = useState([])
   const [first, setfirst] = useState('')
+
+
+  function drawerHis() {
+    setRun(false)
+    setPrevLocation([initialRegion])
+    setDistanceTravel(0)
+    setRideGo(true)
+  }
+
+  function startHandler() {
+    setRun(true)
+    setRideGo(false)
+  }
+
+  useEffect(() => {
+    sethours(Math.floor(timer / 3600))
+    setMinutes(Math.floor((timer % 3600) / 60))
+    setSeconds(Math.floor((timer % 60)))
+  }, [timer])
 
   return (
     <View style={styles.container}>
@@ -227,23 +270,22 @@ export default function MapV5() {
         ref={mapRef}
         style={styles.map}
         provider={PROVIDER_GOOGLE}
-        initialRegion={INITIAL_POSITION}
-        // followsUserLocation
-        showsCompass={true}
-        // showsUserLocation
-        region={initialRegion}
-      // followsUserLocation
+        initialRegion={initialRegion}
+        onRegionChange={() => setfollow(false)}
+        region={follow ? initialRegion : false}
+        loadingEnabled
       >
         {origin && <Marker coordinate={origin} />}
         {destination && <Marker coordinate={destination} />}
         {showDirections && origin && destination && (
           <MapViewDirections
-            origin={origin}
+            origin={initialRegion}
             destination={destination}
             apikey={GOOGLE_API_KEY}
             strokeColor="#6644ff"
             strokeWidth={4}
             onReady={traceRouteOnReady}
+            mode="DRIVING"
           />
         )}
         {currentLocation && (
@@ -255,6 +297,8 @@ export default function MapV5() {
               }}
               title="Your Location"
             />
+            <Polyline coordinates={prevLocation} strokeWidth={3} />
+
           </>
 
         )}
@@ -262,11 +306,29 @@ export default function MapV5() {
           return <Marker key={i} coordinate={{ latitude: el.latitude, longitude: el.longitude }} title={el.username} />
         })}
       </MapView>
+      <TouchableOpacity
+        style={{
+          // position: 'absolute',
+          bottom: 10,
+          right: -50,
+          width: 2,
+          height: 2
+        }}
+        onPress={() => setfollow(true)}
+      >
+        <Image source={require('../assets/greenIndicator.png')} />
+      </TouchableOpacity>
       <View>
-        <TouchableOpacity style={styles.button} onPress={() => setRun(true)}>
+        <Text style={{ fontSize: 20 }}>Distance: {distanceTravel}</Text>
+        <View style={{ fontSize: '100px' }}>
+          <Text>{hours.toString().padStart(2, "0")}:{minutes.toString().padStart(2, "0")}:{seconds.toString().padStart(2, "0")}</Text>
+        </View>
+      </View>
+      <View>
+        <TouchableOpacity style={styles.button} onPress={() => startHandler()}>
           <Text style={styles.buttonText}>Trace route</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => setRun(false)}>
+        <TouchableOpacity style={styles.button} onPress={() => drawerHis()}>
           <Text style={styles.buttonText}>Stop Trace</Text>
         </TouchableOpacity>
         <TextInput
